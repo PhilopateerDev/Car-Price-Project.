@@ -16,8 +16,7 @@ st.markdown("---")
 url = "https://raw.githubusercontent.com/PhilopateerDev/Car-Price-Project./main/Car%20details.csv"
 df_raw = pd.read_csv(url)
 
-# تحويل السعر للدولار (بافتراض أن البيانات الأصلية بالروبية وسعر الصرف 84)
-# يمكنك تغيير الرقم 84 لأي رقم صرف آخر تراه مناسباً
+# تحويل السعر للدولار
 df_raw['selling_price'] = df_raw['selling_price'] / 84
 
 st.subheader("📊 Historical Data Preview (Prices in USD)")
@@ -34,9 +33,11 @@ for col in categorical_cols:
     df[col] = le.fit_transform(df[col].astype(str))
     le_dict[col] = le
 
-df_final = df.drop(['name'], axis=1)
-y = df_final['selling_price']
-X = df_final.drop(['selling_price'], axis=1)
+# --- التعديل الجوهري هنا ---
+# بنختار الأعمدة اللي بقت أرقام فقط عشان الموديل ميغلطش
+features = ['year', 'km_driven', 'fuel', 'seller_type', 'transmission', 'owner', 'brand_model']
+X = df[features] 
+y = df['selling_price']
 
 # --- 3. التدريب ---
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -52,7 +53,7 @@ y_pred = model.predict(X_test)
 score = r2_score(y_test, y_pred)
 
 fig, ax = plt.subplots(figsize=(10, 4))
-ax.scatter(y_test, y_pred, color='green', alpha=0.4) # غيرنا اللون للأخضر (لون الدولار)
+ax.scatter(y_test, y_pred, color='green', alpha=0.4)
 ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--')
 ax.set_xlabel("Actual Price ($)")
 ax.set_ylabel("Predicted Price ($)")
@@ -76,6 +77,7 @@ with c2:
     u_owner = st.selectbox("Owner", df_raw['owner'].unique())
 
 if st.button("Calculate Price In Dollars 💰"):
+    # تحويل مدخلات المستخدم لأرقام
     input_df = pd.DataFrame({
         'year': [u_year],
         'km_driven': [u_km],
@@ -86,10 +88,10 @@ if st.button("Calculate Price In Dollars 💰"):
         'brand_model': [le_dict['brand_model'].transform([u_brand])[0]]
     })
     
-    input_df = input_df[X.columns]
+    # التأكد من نفس ترتيب الأعمدة
+    input_df = input_df[features]
     input_sc = scaler.transform(input_df)
     res = model.predict(input_sc)
     
     st.balloons()
-    # هنا النتيجة ستظهر بالدولار $
     st.info(f"### 💰 Estimated Price: ${res[0]:,.2f}")
